@@ -1,9 +1,21 @@
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { Neo4jModule } from './database/neo4j/neo4j.module';
+import { UsersModule } from './users/users.module';
+import neo4jConfig from './database/neo4j/neo4j.config';
 
 @Module({
-  imports: [],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env',
+      load: [neo4jConfig],
+    }),
+    Neo4jModule,
+    UsersModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -9,20 +9,18 @@ services:
         volumes:
             - neo4j_data:/data
         environment:
-            - NEO4J_AUTH=neo4j/yourStrongPassword # Placeholder
-            # - NEO4J_PLUGINS=["apoc"] # If you need APOC plugin
+            - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD}
         restart: unless-stopped
 
     meilisearch:
-        image: getmeili/meilisearch:latest # Or desired version
+        image: getmeili/meilisearch:latest
         container_name: worldbuild_meili
         ports:
             - "7700:7700"
         volumes:
             - meili_data:/meili_data
         environment:
-            - MEILI_MASTER_KEY=yourSuperSecretMasterApiKey # CHANGE THIS
-            # - MEILI_ENV=development # if needed
+            - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
         restart: unless-stopped
 
 volumes:
