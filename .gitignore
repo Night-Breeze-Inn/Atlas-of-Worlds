@@ -145,3 +145,6 @@ frontend/node_modules/
 # Build output
 backend/dist/
 frontend/dist/
+
+# Local test files
+localTest.txt
