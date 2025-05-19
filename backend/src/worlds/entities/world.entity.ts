@@ -5,7 +5,6 @@ export interface World {
   name: string;
   description?: string;
   defaultMoneySystem?: string;
-  ownerId: string;
   createdAt: Date;
   updatedAt: Date;
 }

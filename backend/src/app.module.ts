@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { Neo4jModule } from './database/neo4j/neo4j.module';
 import { UsersModule } from './users/users.module';
 import { WorldsModule } from './worlds/worlds.module';
+import { LocationsModule } from './locations/locations.module';
 import neo4jConfig from './database/neo4j/neo4j.config';
 
 @Module({
@@ -17,6 +18,7 @@ import neo4jConfig from './database/neo4j/neo4j.config';
     Neo4jModule,
     UsersModule,
     WorldsModule,
+    LocationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
