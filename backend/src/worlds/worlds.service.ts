@@ -3,6 +3,7 @@ import {
   Inject,
   NotFoundException,
   ForbiddenException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import {
   Driver,
@@ -82,13 +83,16 @@ export class WorldsService {
     };
   }
 
-  async create(createWorldDto: CreateWorldDto): Promise<WorldDto> {
+  async create(
+    createWorldDto: CreateWorldDto,
+    ownerIdFromJwt: string,
+  ): Promise<WorldDto> {
     const session: Session = this.neo4jDriver.session();
     try {
-      const owner = await this.usersService.findOneById(createWorldDto.ownerId);
+      const owner = await this.usersService.findOneById(ownerIdFromJwt);
       if (!owner) {
         throw new NotFoundException(
-          `User with ID "${createWorldDto.ownerId}" not found. Cannot create world.`,
+          `User with ID "${ownerIdFromJwt}" not found. Cannot create world.`,
         );
       }
 
@@ -96,7 +100,7 @@ export class WorldsService {
       const now = new Date().toISOString();
 
       const result: QueryResult = await session.run(
-        `MATCH (owner:User {id: $ownerId})
+        `MATCH (ownerUserNode:User {id: $ownerId})
            CREATE (w:World {
              id: $id,
              name: $name,
@@ -105,10 +109,10 @@ export class WorldsService {
              createdAt: datetime($createdAt),
              updatedAt: datetime($updatedAt)
            })
-           CREATE (owner)-[:OWNS]->(w)
-           RETURN w, owner as o`,
+           CREATE (ownerUserNode)-[:OWNS]->(w) 
+           RETURN w, ownerUserNode as o`,
         {
-          ownerId: createWorldDto.ownerId,
+          ownerId: ownerIdFromJwt,
           id: worldId,
           name: createWorldDto.name,
           description: createWorldDto.description ?? null,
@@ -119,7 +123,7 @@ export class WorldsService {
       );
 
       if (result.records.length === 0) {
-        throw new Error('Failed to create world node or OWNS relationship.');
+        return this.mapRecordToWorldDto(result.records[0]);
       }
       return this.mapRecordToWorldDto(result.records[0]);
     } catch (error) {
@@ -153,19 +157,39 @@ export class WorldsService {
     }
   }
 
-  async findOneById(worldId: string): Promise<WorldDto | null> {
+  async findOneById(
+    worldId: string,
+    currentUserId: string,
+  ): Promise<WorldDto | null> {
     const session: Session = this.neo4jDriver.session();
     try {
       const result: QueryResult = await session.run(
-        `MATCH (w:World {id: $worldId})<-[:OWNS]-(owner:User)
-           RETURN w, owner as o`,
-        { worldId },
+        `MATCH (w:World {id: $worldId})<-[:OWNS]-(owner:User {id: $currentUserId})
+          RETURN w, owner as o`,
+        { worldId, currentUserId },
       );
 
       if (result.records.length === 0) {
-        return null;
+        const anyWorldResult = await session.run(
+          'MATCH (w:World {id: $worldId}) RETURN w',
+          { worldId },
+        );
+        if (anyWorldResult.records.length === 0) {
+          return null;
+        }
+        throw new ForbiddenException(
+          'You do not have permission to view this world.',
+        );
       }
       return this.mapRecordToWorldDto(result.records[0]);
+    } catch (error) {
+      if (
+        error instanceof ForbiddenException ||
+        error instanceof NotFoundException
+      )
+        throw error;
+      console.error(`Error in findOneById for world ${worldId}:`, error);
+      throw new InternalServerErrorException('Could not retrieve world.');
     } finally {
       await session.close();
     }

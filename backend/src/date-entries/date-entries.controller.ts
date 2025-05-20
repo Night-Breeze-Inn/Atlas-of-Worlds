@@ -13,14 +13,18 @@ import {
   HttpStatus,
   NotFoundException,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { DateEntriesService } from './date-entries.service';
 import { CreateDateEntryDto } from './dto/create-date-entry.dto';
 import { UpdateDateEntryDto } from './dto/update-date-entry.dto';
 import { DateEntryDto } from './dto/date-entry.dto';
-import { TempUser } from '../common/decorators/temp-user.decorator';
+import { AuthGuard } from '@nestjs/passport';
+import { JwtPayload } from '../auth/auth.service';
+import { AuthUser } from '../auth/decorators/auth-user.decorator';
 
 @Controller('date-entries')
+@UseGuards(AuthGuard('jwt'))
 export class DateEntriesController {
   constructor(private readonly dateEntriesService: DateEntriesService) {}
 
@@ -35,24 +39,27 @@ export class DateEntriesController {
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Body() createDateEntryDto: CreateDateEntryDto,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<DateEntryDto> {
+    const currentUserId = user.sub;
     return this.dateEntriesService.create(createDateEntryDto, currentUserId);
   }
 
   @Get('world/:worldId')
   async findAllByWorld(
     @Param('worldId', ParseUUIDPipe) worldId: string,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<DateEntryDto[]> {
+    const currentUserId = user.sub;
     return this.dateEntriesService.findAllByWorld(worldId, currentUserId);
   }
 
   @Get(':id')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<DateEntryDto> {
+    const currentUserId = user.sub;
     const dateEntry = await this.dateEntriesService.findOneById(
       id,
       currentUserId,
@@ -76,8 +83,9 @@ export class DateEntriesController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateDateEntryDto: UpdateDateEntryDto,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<DateEntryDto> {
+    const currentUserId = user.sub;
     if (Object.keys(updateDateEntryDto).length === 0) {
       throw new BadRequestException('Update data cannot be empty.');
     }
@@ -92,8 +100,9 @@ export class DateEntriesController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<void> {
+    const currentUserId = user.sub;
     await this.dateEntriesService.remove(id, currentUserId);
   }
 }

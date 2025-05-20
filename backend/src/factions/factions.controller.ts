@@ -13,14 +13,18 @@ import {
   HttpStatus,
   NotFoundException,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { FactionsService } from './factions.service';
 import { CreateFactionDto } from './dto/create-faction.dto';
 import { UpdateFactionDto } from './dto/update-faction.dto';
 import { FactionDto } from './dto/faction.dto';
-import { TempUser } from '../common/decorators/temp-user.decorator';
+import { AuthGuard } from '@nestjs/passport';
+import { AuthUser } from '../auth/decorators/auth-user.decorator';
+import { JwtPayload } from '../auth/auth.service';
 
 @Controller('factions')
+@UseGuards(AuthGuard('jwt'))
 export class FactionsController {
   constructor(private readonly factionsService: FactionsService) {}
 
@@ -36,24 +40,27 @@ export class FactionsController {
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Body() createFactionDto: CreateFactionDto,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<FactionDto> {
+    const currentUserId = user.sub;
     return this.factionsService.create(createFactionDto, currentUserId);
   }
 
   @Get('world/:worldId')
   async findAllByWorld(
     @Param('worldId', ParseUUIDPipe) worldId: string,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<FactionDto[]> {
+    const currentUserId = user.sub;
     return this.factionsService.findAllByWorld(worldId, currentUserId);
   }
 
   @Get(':id')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<FactionDto> {
+    const currentUserId = user.sub;
     const faction = await this.factionsService.findOneById(id, currentUserId);
     if (!faction) {
       throw new NotFoundException(
@@ -75,8 +82,9 @@ export class FactionsController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateFactionDto: UpdateFactionDto,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<FactionDto> {
+    const currentUserId = user.sub;
     if (Object.keys(updateFactionDto).length === 0) {
       throw new BadRequestException('Update data cannot be empty.');
     }
@@ -87,8 +95,9 @@ export class FactionsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<void> {
+    const currentUserId = user.sub;
     await this.factionsService.remove(id, currentUserId);
   }
 }

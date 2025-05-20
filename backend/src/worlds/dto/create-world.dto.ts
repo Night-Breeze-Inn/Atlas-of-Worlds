@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, IsUUID } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional } from 'class-validator';
 
 export class CreateWorldDto {
   @IsString()
@@ -12,8 +12,4 @@ export class CreateWorldDto {
   @IsString()
   @IsOptional()
   defaultMoneySystem?: string;
-
-  @IsUUID()
-  @IsNotEmpty()
-  ownerId: string;
 }

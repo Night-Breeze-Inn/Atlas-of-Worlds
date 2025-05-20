@@ -13,14 +13,18 @@ import {
   HttpStatus,
   NotFoundException,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { EventDto } from './dto/event.dto';
-import { TempUser } from '../common/decorators/temp-user.decorator';
+import { AuthGuard } from '@nestjs/passport';
+import { AuthUser } from '../auth/decorators/auth-user.decorator';
+import { JwtPayload } from '../auth/auth.service';
 
 @Controller('events')
+@UseGuards(AuthGuard('jwt'))
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
@@ -36,24 +40,27 @@ export class EventsController {
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Body() createEventDto: CreateEventDto,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<EventDto> {
+    const currentUserId = user.sub;
     return this.eventsService.create(createEventDto, currentUserId);
   }
 
   @Get('world/:worldId')
   async findAllByWorld(
     @Param('worldId', ParseUUIDPipe) worldId: string,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<EventDto[]> {
+    const currentUserId = user.sub;
     return this.eventsService.findAllByWorld(worldId, currentUserId);
   }
 
   @Get(':id')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<EventDto> {
+    const currentUserId = user.sub;
     const event = await this.eventsService.findOneById(id, currentUserId);
     if (!event) {
       throw new NotFoundException(
@@ -75,8 +82,9 @@ export class EventsController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateEventDto: UpdateEventDto,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<EventDto> {
+    const currentUserId = user.sub;
     if (Object.keys(updateEventDto).length === 0) {
       throw new BadRequestException('Update data cannot be empty.');
     }
@@ -87,8 +95,9 @@ export class EventsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<void> {
+    const currentUserId = user.sub;
     await this.eventsService.remove(id, currentUserId);
   }
 }

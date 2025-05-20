@@ -1,4 +1,3 @@
-// backend/src/worlds/worlds.controller.ts
 import {
   Controller,
   Post,
@@ -14,20 +13,18 @@ import {
   HttpStatus,
   NotFoundException,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { WorldsService } from './worlds.service';
 import { CreateWorldDto } from './dto/create-world.dto';
 import { UpdateWorldDto } from './dto/update-world.dto';
 import { WorldDto } from './dto/world.dto';
-
-interface UpdateBodyWithTestingId extends UpdateWorldDto {
-  tempOwnerIdForTesting?: string;
-}
-interface DeleteBodyWithTestingId {
-  tempOwnerIdForTesting?: string;
-}
+import { AuthUser } from '../auth/decorators/auth-user.decorator';
+import { JwtPayload } from '../auth/auth.service';
 
 @Controller('worlds')
+@UseGuards(AuthGuard('jwt'))
 export class WorldsController {
   constructor(private readonly worldsService: WorldsService) {}
 
@@ -40,22 +37,33 @@ export class WorldsController {
     }),
   )
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createWorldDto: CreateWorldDto): Promise<WorldDto> {
-    return this.worldsService.create(createWorldDto);
+  async create(
+    @Body() createWorldDto: CreateWorldDto,
+    @AuthUser() user: JwtPayload,
+  ): Promise<WorldDto> {
+    const authenticatedUserId = user.sub;
+    return this.worldsService.create(createWorldDto, authenticatedUserId);
   }
 
-  @Get('owner/:ownerId')
-  async findAllByOwner(
-    @Param('ownerId', ParseUUIDPipe) ownerId: string,
+  @Get('owner/me')
+  async findAllByAuthenticatedOwner(
+    @AuthUser() user: JwtPayload,
   ): Promise<WorldDto[]> {
+    const ownerId = user.sub;
     return this.worldsService.findAllByOwner(ownerId);
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseUUIDPipe) id: string): Promise<WorldDto> {
-    const world = await this.worldsService.findOneById(id);
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+    @AuthUser() user: JwtPayload,
+  ): Promise<WorldDto> {
+    const currentUserId = user.sub;
+    const world = await this.worldsService.findOneById(id, currentUserId);
     if (!world) {
-      throw new NotFoundException(`World with ID "${id}" not found.`);
+      throw new NotFoundException(
+        `World with ID "${id}" not found or not accessible to you.`,
+      );
     }
     return world;
   }
@@ -66,18 +74,14 @@ export class WorldsController {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      skipMissingProperties: true,
     }),
   )
   async update(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() bodyWithTestingId: UpdateBodyWithTestingId,
+    @Body() updateWorldDto: UpdateWorldDto,
+    @AuthUser() user: JwtPayload,
   ): Promise<WorldDto> {
-    const { tempOwnerIdForTesting, ...updateWorldDto } = bodyWithTestingId;
-
-    const currentUserId: string =
-      tempOwnerIdForTesting || '00000000-0000-0000-0000-000000000000';
-
+    const currentUserId = user.sub;
     if (Object.keys(updateWorldDto).length === 0) {
       throw new BadRequestException('Update data cannot be empty.');
     }
@@ -88,10 +92,9 @@ export class WorldsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
-    @Body() body: DeleteBodyWithTestingId,
+    @AuthUser() user: JwtPayload,
   ): Promise<void> {
-    const currentUserId: string =
-      body.tempOwnerIdForTesting || '00000000-0000-0000-0000-000000000000';
+    const currentUserId = user.sub;
     await this.worldsService.remove(id, currentUserId);
   }
 }

@@ -13,14 +13,18 @@ import {
   HttpStatus,
   NotFoundException,
   BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
 import { CharactersService } from './characters.service';
 import { CreateCharacterDto } from './dto/create-character.dto';
 import { UpdateCharacterDto } from './dto/update-character.dto';
 import { CharacterDto } from './dto/character.dto';
-import { TempUser } from '../common/decorators/temp-user.decorator';
+import { JwtPayload } from '../auth/auth.service';
+import { AuthUser } from '../auth/decorators/auth-user.decorator';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('characters')
+@UseGuards(AuthGuard('jwt'))
 export class CharactersController {
   constructor(private readonly charactersService: CharactersService) {}
 
@@ -36,24 +40,27 @@ export class CharactersController {
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Body() createCharacterDto: CreateCharacterDto,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<CharacterDto> {
+    const currentUserId = user.sub;
     return this.charactersService.create(createCharacterDto, currentUserId);
   }
 
   @Get('world/:worldId')
   async findAllByWorld(
     @Param('worldId', ParseUUIDPipe) worldId: string,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<CharacterDto[]> {
+    const currentUserId = user.sub;
     return this.charactersService.findAllByWorld(worldId, currentUserId);
   }
 
   @Get(':id')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<CharacterDto> {
+    const currentUserId = user.sub;
     const character = await this.charactersService.findOneById(
       id,
       currentUserId,
@@ -78,8 +85,9 @@ export class CharactersController {
   async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateCharacterDto: UpdateCharacterDto,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<CharacterDto> {
+    const currentUserId = user.sub;
     if (Object.keys(updateCharacterDto).length === 0) {
       throw new BadRequestException('Update data cannot be empty.');
     }
@@ -90,8 +98,9 @@ export class CharactersController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
-    @TempUser() currentUserId: string,
+    @AuthUser() user: JwtPayload,
   ): Promise<void> {
+    const currentUserId = user.sub;
     await this.charactersService.remove(id, currentUserId);
   }
 }
