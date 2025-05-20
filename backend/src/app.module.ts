@@ -13,6 +13,7 @@ import { EventsModule } from './events/events.module';
 import { ConceptsModule } from './concepts/concepts.module';
 import { DateEntriesModule } from './date-entries/date-entries.module';
 import { AuthModule } from './auth/auth.module';
+import { RelationshipsModule } from './relationships/relationships.module';
 import neo4jConfig from './database/neo4j/neo4j.config';
 
 @Module({
@@ -33,6 +34,7 @@ import neo4jConfig from './database/neo4j/neo4j.config';
     ConceptsModule,
     DateEntriesModule,
     AuthModule,
+    RelationshipsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
