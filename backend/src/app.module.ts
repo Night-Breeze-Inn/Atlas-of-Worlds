@@ -9,6 +9,7 @@ import { LocationsModule } from './locations/locations.module';
 import { CharactersModule } from './characters/characters.module';
 import { FactionsModule } from './factions/factions.module';
 import { ItemsModule } from './items/items.module';
+import { EventsModule } from './events/events.module';
 import neo4jConfig from './database/neo4j/neo4j.config';
 
 @Module({
@@ -25,6 +26,7 @@ import neo4jConfig from './database/neo4j/neo4j.config';
     CharactersModule,
     FactionsModule,
     ItemsModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
