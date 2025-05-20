@@ -6,6 +6,7 @@ import { Neo4jModule } from './database/neo4j/neo4j.module';
 import { UsersModule } from './users/users.module';
 import { WorldsModule } from './worlds/worlds.module';
 import { LocationsModule } from './locations/locations.module';
+import { CharactersModule } from './characters/characters.module';
 import neo4jConfig from './database/neo4j/neo4j.config';
 
 @Module({
@@ -19,6 +20,7 @@ import neo4jConfig from './database/neo4j/neo4j.config';
     UsersModule,
     WorldsModule,
     LocationsModule,
+    CharactersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
