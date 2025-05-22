@@ -8,6 +8,8 @@ export interface JwtPayload {
   sub: string;
   username: string;
   email: string;
+  iat?: number; // issued at
+  exp?: number; // expiration time
 }
 
 export interface LoginResponse {
