@@ -8,6 +8,12 @@ interface AuthenticatedRequest extends Request {
 export const AuthUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): JwtPayload => {
     const request = ctx.switchToHttp().getRequest<AuthenticatedRequest>();
+    console.log('AuthUser Decorator: request.user is:', request.user);
+    if (!request.user) {
+      console.error(
+        'AuthUser Decorator: request.user is undefined! AuthGuard might not have run or failed.',
+      );
+    }
     return request.user;
   },
 );

@@ -22,6 +22,11 @@ import {
   CharacterRole,
 } from './entities/character.entity';
 import { v4 as uuidv4 } from 'uuid';
+import { FactionDto } from '../factions/dto/faction.dto';
+import { FactionNodeProperties } from '../factions/entities/faction.entity';
+import { RelationshipPropertiesDto } from '../relationships/dto/create-relationship.dto';
+import { RelatedNodeDto } from '../relationships/dto/related-node.dto';
+import { AllowedRelationshipTypes } from '../relationships/dto/create-relationship.dto';
 
 @Injectable()
 export class CharactersService {
@@ -57,6 +62,101 @@ export class CharactersService {
       createdAt: this.neo4jDateTimeToDate(charNodeProperties.createdAt),
       updatedAt: this.neo4jDateTimeToDate(charNodeProperties.updatedAt),
     };
+  }
+
+  private mapRecordToFactionWithMembership(
+    record: Neo4jRecord,
+  ): RelatedNodeDto<FactionDto, RelationshipPropertiesDto> {
+    const factionNodeProps = record.get('f') as {
+      properties: FactionNodeProperties;
+    };
+    const factionNodeProperties = factionNodeProps.properties;
+    const worldId = record.get('worldId') as string;
+    const relProps = record.get('r') as {
+      properties: RelationshipPropertiesDto;
+    };
+    const relPropsProperties = relProps.properties;
+    const relType = record.get('relationshipType') as string;
+
+    const factionDto: FactionDto = {
+      id: factionNodeProperties.id,
+      name: factionNodeProperties.name,
+      description: factionNodeProperties.description,
+      type: factionNodeProperties.type,
+      ideology: factionNodeProperties.ideology,
+      worldId: worldId,
+      createdAt: this.neo4jDateTimeToDate(factionNodeProperties.createdAt),
+      updatedAt: this.neo4jDateTimeToDate(factionNodeProperties.updatedAt),
+    };
+
+    return {
+      node: factionDto,
+      relationshipProperties: relPropsProperties,
+      relationshipType: relType,
+    };
+  }
+
+  async findMemberOfFactions(
+    characterId: string,
+    currentUserId: string,
+  ): Promise<RelatedNodeDto<FactionDto, RelationshipPropertiesDto>[]> {
+    const session = this.neo4jDriver.session();
+    try {
+      const authCheck = await session.run(
+        `MATCH (c:Character {id: $characterId})-[:BELONGS_TO_WORLD]->(w:World)<-[:OWNS]-(u:User {id: $currentUserId})
+         RETURN c.id`,
+        { characterId, currentUserId },
+      );
+      if (authCheck.records.length === 0) {
+        const charExists = await session.run(
+          `MATCH (c:Character {id: $characterId}) RETURN c.id`,
+          { characterId },
+        );
+        if (charExists.records.length === 0)
+          throw new NotFoundException(
+            `Character with ID ${characterId} not found.`,
+          );
+        throw new ForbiddenException(
+          `You do not have permission to view this character's faction memberships.`,
+        );
+      }
+
+      const result = await session.run(
+        `MATCH (c:Character {id: $characterId})-[r:${AllowedRelationshipTypes.MEMBER_OF}]->(f:Faction)
+         MATCH (f)-[:BELONGS_TO_WORLD]->(w:World) // To get worldId for FactionDto
+         RETURN f, properties(r) as rProps, type(r) as rType, w.id as worldId`,
+        { characterId },
+      );
+
+      return result.records.map((record) => {
+        const factionNode = record.get('f') as {
+          properties: FactionNodeProperties;
+        };
+        const relProps = record.get('rProps') as RelationshipPropertiesDto;
+        const relType = record.get('rType') as string;
+        const factionWorldId = record.get('worldId') as string;
+        const factionNodeProperties = factionNode.properties;
+
+        const factionDto: FactionDto = {
+          id: factionNodeProperties.id,
+          name: factionNodeProperties.name,
+          description: factionNodeProperties.description,
+          type: factionNodeProperties.type,
+          ideology: factionNodeProperties.ideology,
+          worldId: factionWorldId,
+          createdAt: this.neo4jDateTimeToDate(factionNodeProperties.createdAt),
+          updatedAt: this.neo4jDateTimeToDate(factionNodeProperties.updatedAt),
+        };
+
+        return {
+          node: factionDto,
+          relationshipProperties: relProps,
+          relationshipType: relType,
+        };
+      });
+    } finally {
+      await session.close();
+    }
   }
 
   async create(

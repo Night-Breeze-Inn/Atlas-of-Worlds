@@ -6,13 +6,22 @@ import {
   BadRequestException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { Driver, Session } from 'neo4j-driver';
+import {
+  Driver,
+  Session,
+  Node as Neo4jNode,
+  Relationship as Neo4jRelationship,
+  Date as Neo4jDate,
+  DateTime as Neo4jDateTime,
+  Integer as Neo4jInteger,
+} from 'neo4j-driver';
 import { NEO4J_DRIVER } from '../database/neo4j/neo4j.constants';
 import {
   CreateRelationshipDto,
   AllowedRelationshipTypes,
   RelationshipPropertiesDto,
 } from './dto/create-relationship.dto';
+import { GenericRelatedNodeDto } from './dto/generic-related-node.dto';
 
 function sanitizeForCypher(input: string): string {
   return input.replace(/[^a-zA-Z0-9_]/g, '');
@@ -40,6 +49,206 @@ function mapNodeTypeToLabel(nodeType: string): string {
 @Injectable()
 export class RelationshipsService {
   constructor(@Inject(NEO4J_DRIVER) private readonly neo4jDriver: Driver) {}
+
+  private neo4jTemporalToDate(
+    value: Neo4jDateTime | Neo4jDate | string | null | undefined,
+  ): Date | undefined {
+    if (!value) return undefined;
+    if (typeof value === 'string') return new Date(value);
+    return new Date(
+      value.year.toInt(),
+      value.month.toInt() - 1,
+      value.day.toInt(),
+      (value as Neo4jDateTime).hour?.toInt() || 0,
+      (value as Neo4jDateTime).minute?.toInt() || 0,
+      (value as Neo4jDateTime).second?.toInt() || 0,
+      (value as Neo4jDateTime).nanosecond?.toInt() / 1000000 || 0,
+    );
+  }
+
+  private neo4jIntToNumber(value: unknown): number | undefined {
+    if (value === null || value === undefined) return undefined;
+    if (typeof value === 'number') return value;
+    if (value instanceof Neo4jInteger) {
+      return value.toNumber();
+    }
+    if (typeof value === 'string') {
+      const num = parseInt(value, 10);
+      if (!isNaN(num)) return num;
+    }
+    console.warn(
+      'neo4jIntToNumber received unexpected type or structure in RelationshipsService:',
+      value,
+    );
+    return undefined;
+  }
+
+  private convertNeo4jProperties(
+    properties: Record<string, any>,
+  ): Record<string, any> {
+    const converted: Record<string, any> = {};
+    for (const key in properties) {
+      if (Object.prototype.hasOwnProperty.call(properties, key)) {
+        const value: unknown = properties[key];
+        if (value instanceof Neo4jDate || value instanceof Neo4jDateTime) {
+          converted[key] = this.neo4jTemporalToDate(value)?.toISOString();
+        } else if (value instanceof Neo4jInteger) {
+          converted[key] = this.neo4jIntToNumber(value);
+        } else if (Array.isArray(value)) {
+          converted[key] = value.map((item) => {
+            if (item instanceof Neo4jDate || item instanceof Neo4jDateTime) {
+              return this.neo4jTemporalToDate(item)?.toISOString();
+            }
+            if (item instanceof Neo4jInteger) {
+              return this.neo4jIntToNumber(item);
+            }
+            return item as unknown;
+          });
+        } else {
+          converted[key] = value;
+        }
+      }
+    }
+    return converted;
+  }
+
+  private mapNeo4jNodeToGenericNodePart(
+    dbNode: Neo4jNode<number>,
+  ): GenericRelatedNodeDto['node'] {
+    const nodeId = dbNode.properties.id as string;
+    if (typeof nodeId !== 'string') {
+      console.warn(
+        `Node with internal ID ${dbNode.identity.toString()} is missing a string 'id' property.`,
+      );
+    }
+
+    return {
+      id: nodeId,
+      labels: dbNode.labels,
+      properties: this.convertNeo4jProperties(dbNode.properties),
+    };
+  }
+
+  private mapNeo4jRelationshipToGenericRelationshipPart(
+    dbRelationship: Neo4jRelationship<number>,
+  ): GenericRelatedNodeDto['relationship'] {
+    return {
+      id: dbRelationship.identity.toString(),
+      type: dbRelationship.type,
+      properties: this.convertNeo4jProperties(dbRelationship.properties), // Use the converter
+    };
+  }
+
+  async getRelatedNodes(
+    startNodeType: string,
+    startNodeId: string,
+    direction: 'outgoing' | 'incoming' | 'both' = 'outgoing',
+    currentUserId: string,
+    relationshipTypeParam?: AllowedRelationshipTypes | string,
+    endNodeTypeParam?: string,
+  ): Promise<GenericRelatedNodeDto[]> {
+    const session = this.neo4jDriver.session();
+    try {
+      const startLabel = mapNodeTypeToLabel(startNodeType);
+
+      const authCheckQuery = `
+        MATCH (startNode:${startLabel} {id: $startNodeId})
+        // Assuming startNode either is a World, or BELONGS_TO_WORLD
+        WHERE ($startLabel = 'World' AND EXISTS((startNode)<-[:OWNS]-(:User {id: $currentUserId})))
+           OR EXISTS((startNode)-[:BELONGS_TO_WORLD]->(:World)<-[:OWNS]-(:User {id: $currentUserId}))
+           OR ($startLabel = 'User' AND startNode.id = $currentUserId) // If startNode is the user themselves
+        RETURN startNode.id
+      `;
+      const authResult = await session.run(authCheckQuery, {
+        startNodeId,
+        currentUserId,
+        startLabel,
+      });
+      if (authResult.records.length === 0) {
+        const nodeExists = await session.run(
+          `MATCH (n:${startLabel} {id: $startNodeId}) RETURN n.id`,
+          { startNodeId },
+        );
+        if (nodeExists.records.length === 0)
+          throw new NotFoundException(
+            `${startLabel} with ID ${startNodeId} not found.`,
+          );
+        throw new ForbiddenException(
+          `You do not have permission to view relationships for this node.`,
+        );
+      }
+
+      let cypherRelType = '';
+      if (relationshipTypeParam) {
+        if (
+          !Object.values(AllowedRelationshipTypes).includes(
+            relationshipTypeParam as AllowedRelationshipTypes,
+          )
+        ) {
+          throw new BadRequestException(
+            `Invalid relationship type: ${relationshipTypeParam}`,
+          );
+        }
+        cypherRelType = `:${sanitizeForCypher(relationshipTypeParam)}`;
+      }
+
+      let cypherEndNodeLabel = '';
+      if (endNodeTypeParam) {
+        cypherEndNodeLabel = `:${mapNodeTypeToLabel(endNodeTypeParam)}`;
+      }
+
+      let matchClause = '';
+      const returnClause = `RETURN startNode, r, endNode`;
+
+      switch (direction) {
+        case 'outgoing':
+          matchClause = `MATCH (startNode:${startLabel} {id: $startNodeId})-[r${cypherRelType}]->(endNode${cypherEndNodeLabel})`;
+          break;
+        case 'incoming':
+          matchClause = `MATCH (startNode:${startLabel} {id: $startNodeId})<-[r${cypherRelType}]-(endNode${cypherEndNodeLabel})`;
+          break;
+        case 'both':
+          matchClause = `MATCH (startNode:${startLabel} {id: $startNodeId})-[r${cypherRelType}]-(endNode${cypherEndNodeLabel})`;
+          break;
+        default:
+          throw new BadRequestException('Invalid direction parameter.');
+      }
+
+      const query = `${matchClause} ${returnClause}`;
+      const result = await session.run(query, { startNodeId });
+
+      return result.records.map((record) => {
+        const startNodeFromRecord = record.get(
+          'startNode',
+        ) as Neo4jNode<number>;
+        const neo4jRelationshipFromRecord = record.get(
+          'r',
+        ) as Neo4jRelationship<number>;
+        const endNodeFromRecord = record.get('endNode') as Neo4jNode<number>;
+
+        let actualDirection: 'outgoing' | 'incoming' = direction as
+          | 'outgoing'
+          | 'incoming';
+        if (direction === 'both') {
+          actualDirection =
+            neo4jRelationshipFromRecord.start === startNodeFromRecord.identity
+              ? 'outgoing'
+              : 'incoming';
+        }
+        const targetNodeForDto = endNodeFromRecord;
+
+        return {
+          node: this.mapNeo4jNodeToGenericNodePart(targetNodeForDto),
+          relationship: this.mapNeo4jRelationshipToGenericRelationshipPart(
+            neo4jRelationshipFromRecord,
+          ),
+          direction: actualDirection,
+        };
+      });
+    } finally {
+      await session.close();
+    }
+  }
 
   async createRelationship(
     startNodeType: string,

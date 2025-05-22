@@ -22,6 +22,9 @@ import { CharacterDto } from './dto/character.dto';
 import { JwtPayload } from '../auth/auth.service';
 import { AuthUser } from '../auth/decorators/auth-user.decorator';
 import { AuthGuard } from '@nestjs/passport';
+import { FactionDto } from '../factions/dto/faction.dto';
+import { RelationshipPropertiesDto } from '../relationships/dto/create-relationship.dto';
+import { RelatedNodeDto } from '../relationships/dto/related-node.dto';
 
 @Controller('characters')
 @UseGuards(AuthGuard('jwt'))
@@ -102,5 +105,13 @@ export class CharactersController {
   ): Promise<void> {
     const currentUserId = user.sub;
     await this.charactersService.remove(id, currentUserId);
+  }
+
+  @Get(':id/member-of-factions')
+  async getMemberOfFactions(
+    @Param('id', ParseUUIDPipe) characterId: string,
+    @AuthUser() user: JwtPayload,
+  ): Promise<RelatedNodeDto<FactionDto, RelationshipPropertiesDto>[]> {
+    return this.charactersService.findMemberOfFactions(characterId, user.sub);
   }
 }
