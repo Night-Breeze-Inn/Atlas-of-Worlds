@@ -11,6 +11,7 @@ import WorldsListPage from './pages/WorldsListPage';
 import CreateWorldPage from './pages/CreateWorldPage';
 import HomePage from './pages/HomePage';
 import Header from './components/Header';
+import WorldDetailPage from './pages/WorldDetailPage';
 import { useAuth } from './hooks/useAuth';
 
 const ProtectedRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -29,38 +30,48 @@ const ProtectedRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
 function App() {
   return (
     <Router>
-      <div className="font-primary flex min-h-screen flex-col items-center bg-red-50 text-pink-950">
+      <div>
         <Header />
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route
-            path="/my-worlds"
-            element={
-              <ProtectedRoute>
-                <WorldsListPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="*"
-            element={
-              useAuth().isAuthenticated ? (
-                <Navigate to="/my-worlds" />
-              ) : (
-                <Navigate to="/" />
-              )
-            }
-          />
-          <Route
-            path="/worlds/create"
-            element={
-              <ProtectedRoute>
-                <CreateWorldPage />
-              </ProtectedRoute>
-            }
-          />
-        </Routes>
+        <main style={{ padding: '1rem' }}>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route
+              path="/my-worlds"
+              element={
+                <ProtectedRoute>
+                  <WorldsListPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/worlds/create"
+              element={
+                <ProtectedRoute>
+                  <CreateWorldPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/my-worlds/:worldId"
+              element={
+                <ProtectedRoute>
+                  <WorldDetailPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="*"
+              element={
+                useAuth().isAuthenticated ? (
+                  <Navigate to="/my-worlds" />
+                ) : (
+                  <Navigate to="/" />
+                )
+              }
+            />
+          </Routes>
+        </main>
       </div>
     </Router>
   );
