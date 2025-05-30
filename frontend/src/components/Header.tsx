@@ -26,6 +26,9 @@ const Header: React.FC = () => {
           ) : (
             <>
               <li>
+                <Link to="/my-worlds">My Worlds</Link>
+              </li>
+              <li>
                 <button onClick={handleLogout}>Logout</button>
               </li>
             </>
