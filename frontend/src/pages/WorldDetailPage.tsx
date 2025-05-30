@@ -1,21 +1,27 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import apiClient from '../services/api';
 import axios from 'axios';
 
 import { WorldDto } from '../../../backend/src/worlds/dto/world.dto';
 import { CharacterDto } from '../../../backend/src/characters/dto/character.dto';
 import { LocationDto } from '../../../backend/src/locations/dto/location.dto';
-// You would also import DTOs for Faction, Item, Event, Concept, DateEntry as you add them
+import { FactionDto } from '../../../backend/src/factions/dto/faction.dto';
+import { ItemDto } from '../../../backend/src/items/dto/item.dto';
+import { EventDto } from '../../../backend/src/events/dto/event.dto';
+import { ConceptDto } from '../../../backend/src/concepts/dto/concept.dto';
+import { DateEntryDto } from '../../../backend/src/date-entries/dto/date-entry.dto';
 
 const WorldDetailPage: React.FC = () => {
   const { worldId } = useParams<{ worldId: string }>();
   const [world, setWorld] = useState<WorldDto | null>(null);
   const [characters, setCharacters] = useState<CharacterDto[]>([]);
   const [locations, setLocations] = useState<LocationDto[]>([]);
-  // Add more state for other entity types:
-  // const [factions, setFactions] = useState<FactionDto[]>([]);
-  // const [items, setItems] = useState<ItemDto[]>([]);
+  const [events, setEvents] = useState<EventDto[]>([]);
+  const [concepts, setConcepts] = useState<ConceptDto[]>([]);
+  const [dateEntries, setDateEntries] = useState<DateEntryDto[]>([]);
+  const [factions, setFactions] = useState<FactionDto[]>([]);
+  const [items, setItems] = useState<ItemDto[]>([]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +47,30 @@ const WorldDetailPage: React.FC = () => {
         );
         setLocations(locationsResponse.data);
 
-        // TODO: Fetch other related entities (Factions, Items, Events, Concepts, DateEntries)
+        const factionsResponse = await apiClient.get<FactionDto[]>(
+          `/factions/world/${worldId}`,
+        );
+        setFactions(factionsResponse.data);
+
+        const itemsResponse = await apiClient.get<ItemDto[]>(
+          `/items/world/${worldId}`,
+        );
+        setItems(itemsResponse.data);
+
+        const eventsResponse = await apiClient.get<EventDto[]>(
+          `/events/world/${worldId}`,
+        );
+        setEvents(eventsResponse.data);
+
+        const conceptsResponse = await apiClient.get<ConceptDto[]>(
+          `/concepts/world/${worldId}`,
+        );
+        setConcepts(conceptsResponse.data);
+
+        const dateEntriesResponse = await apiClient.get<DateEntryDto[]>(
+          `/date-entries/world/${worldId}`,
+        );
+        setDateEntries(dateEntriesResponse.data);
       } catch (err: unknown) {
         let errorMessage = 'Failed to fetch world details.';
         if (axios.isAxiosError(err)) {
@@ -89,13 +118,19 @@ const WorldDetailPage: React.FC = () => {
         )}
       </header>
 
+      {/* Characters Section */}
       <section className="mb-8">
         <h2 className="mb-3 text-2xl font-semibold text-red-600">Characters</h2>
         {characters.length > 0 ? (
           <ul className="list-disc space-y-1 pl-5">
             {characters.map((char) => (
               <li key={char.id}>
-                {char.name} {/* TODO: Link to character detail page */}
+                <a
+                  href={`/characters/${char.id}`}
+                  className="text-blue-600 hover:underline"
+                >
+                  {char.name}
+                </a>
                 {char.description && (
                   <span className="ml-2 text-sm text-gray-500">
                     - {char.description.substring(0, 50)}...
@@ -107,8 +142,12 @@ const WorldDetailPage: React.FC = () => {
         ) : (
           <p>No characters yet in this world.</p>
         )}
-        {/* TODO: Add Link to create new character for this world */}
-        {/* <Link to={`/worlds/${worldId}/characters/create`}>Add Character</Link> */}
+        <Link
+          to={`/worlds/${worldId}/characters/create`}
+          className="mt-2 inline-block rounded bg-pink-500 px-4 py-2 text-white transition-colors hover:bg-pink-600"
+        >
+          Add Character
+        </Link>
       </section>
 
       {/* Locations Section */}
@@ -130,13 +169,169 @@ const WorldDetailPage: React.FC = () => {
         ) : (
           <p>No locations yet in this world.</p>
         )}
-        {/* TODO: Add Link to create new location for this world */}
       </section>
 
-      {/* TODO: Add sections for Factions, Items, Events, Concepts, DateEntries */}
+      {/* Factions Section */}
+      <section className="mb-8">
+        <h2 className="mb-3 text-2xl font-semibold text-red-600">Factions</h2>
+        {factions.length > 0 ? (
+          <ul className="list-disc space-y-1 pl-5">
+            {factions.map((faction) => (
+              <li key={faction.id}>
+                <a
+                  href={`/factions/${faction.id}`}
+                  className="text-blue-600 hover:underline"
+                >
+                  {faction.name}
+                </a>
+                {faction.description && (
+                  <span className="ml-2 text-sm text-gray-500">
+                    - {faction.description.substring(0, 50)}...
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No factions yet in this world.</p>
+        )}
+        <Link
+          to={`/worlds/${worldId}/factions/create`}
+          className="mt-2 inline-block rounded bg-pink-500 px-4 py-2 text-white transition-colors hover:bg-pink-600"
+        >
+          Add Faction
+        </Link>
+      </section>
 
-      {/* TODO: Add UI for creating/viewing relationships originating from this World (if any direct ones) */}
-      {/* Or, more commonly, relationships will be managed from the individual entity detail pages (e.g., Character X MEMBER_OF Faction Y) */}
+      {/* Items Section */}
+      <section className="mb-8">
+        <h2 className="mb-3 text-2xl font-semibold text-red-600">Items</h2>
+        {items.length > 0 ? (
+          <ul className="list-disc space-y-1 pl-5">
+            {items.map((item) => (
+              <li key={item.id}>
+                <a
+                  href={`/items/${item.id}`}
+                  className="text-blue-600 hover:underline"
+                >
+                  {item.name}
+                </a>
+                {item.description && (
+                  <span className="ml-2 text-sm text-gray-500">
+                    - {item.description.substring(0, 50)}...
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No items yet in this world.</p>
+        )}
+        <Link
+          to={`/worlds/${worldId}/items/create`}
+          className="mt-2 inline-block rounded bg-pink-500 px-4 py-2 text-white transition-colors hover:bg-pink-600"
+        >
+          Add Item
+        </Link>
+      </section>
+
+      {/* Events Section */}
+      <section className="mb-8">
+        <h2 className="mb-3 text-2xl font-semibold text-red-600">Events</h2>
+        {events.length > 0 ? (
+          <ul className="list-disc space-y-1 pl-5">
+            {events.map((event) => (
+              <li key={event.id}>
+                <a
+                  href={`/events/${event.id}`}
+                  className="text-blue-600 hover:underline"
+                >
+                  {event.name}
+                </a>
+                {event.description && (
+                  <span className="ml-2 text-sm text-gray-500">
+                    - {event.description.substring(0, 50)}...
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No events yet in this world.</p>
+        )}
+        <Link
+          to={`/worlds/${worldId}/events/create`}
+          className="mt-2 inline-block rounded bg-pink-500 px-4 py-2 text-white transition-colors hover:bg-pink-600"
+        >
+          Add Event
+        </Link>
+      </section>
+
+      {/* Concepts Section */}
+      <section className="mb-8">
+        <h2 className="mb-3 text-2xl font-semibold text-red-600">Concepts</h2>
+        {concepts.length > 0 ? (
+          <ul className="list-disc space-y-1 pl-5">
+            {concepts.map((concept) => (
+              <li key={concept.id}>
+                <a
+                  href={`/concepts/${concept.id}`}
+                  className="text-blue-600 hover:underline"
+                >
+                  {concept.name}
+                </a>
+                {concept.description && (
+                  <span className="ml-2 text-sm text-gray-500">
+                    - {concept.description.substring(0, 50)}...
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No concepts yet in this world.</p>
+        )}
+        <Link
+          to={`/worlds/${worldId}/concepts/create`}
+          className="mt-2 inline-block rounded bg-pink-500 px-4 py-2 text-white transition-colors hover:bg-pink-600"
+        >
+          Add Concept
+        </Link>
+      </section>
+
+      {/* Date Entries Section */}
+      <section className="mb-8">
+        <h2 className="mb-3 text-2xl font-semibold text-red-600">
+          Date Entries
+        </h2>
+        {dateEntries.length > 0 ? (
+          <ul className="list-disc space-y-1 pl-5">
+            {dateEntries.map((entry) => (
+              <li key={entry.id}>
+                <a
+                  href={`/date-entries/${entry.id}`}
+                  className="text-blue-600 hover:underline"
+                >
+                  {entry.name}
+                </a>
+                {entry.description && (
+                  <span className="ml-2 text-sm text-gray-500">
+                    - {entry.description.substring(0, 50)}...
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>No date entries yet in this world.</p>
+        )}
+        <Link
+          to={`/worlds/${worldId}/date-entries/create`}
+          className="mt-2 inline-block rounded bg-pink-500 px-4 py-2 text-white transition-colors hover:bg-pink-600"
+        >
+          Add Date Entry
+        </Link>
+      </section>
     </div>
   );
 };

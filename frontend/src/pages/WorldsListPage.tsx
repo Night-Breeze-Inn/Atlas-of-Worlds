@@ -1,4 +1,3 @@
-// frontend/src/pages/WorldsListPage.tsx
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import apiClient from '../services/api';
