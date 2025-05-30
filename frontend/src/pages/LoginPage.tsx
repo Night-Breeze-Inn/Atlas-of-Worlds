@@ -16,7 +16,6 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   type LocationState = { from?: { pathname?: string } };
-  const from = (location.state as LocationState)?.from?.pathname || '/';
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -28,20 +27,27 @@ const LoginPage: React.FC = () => {
         password,
       });
       auth.login(response.data.accessToken);
-      navigate(from, { replace: true });
+      navigate(
+        (location.state as LocationState)?.from?.pathname || '/my-worlds',
+        { replace: true },
+      );
     } catch (err: unknown) {
-        let errorMessage = 'An unexpected error occurred during login.';
-        if (axios.isAxiosError(err)) {
-          if (err.response && err.response.data && typeof err.response.data.message === 'string') {
-            errorMessage = err.response.data.message;
-          } else if (typeof err.message === 'string') {
-            errorMessage = err.message;
-          }
-        } else if (err instanceof Error) {
-             errorMessage = err.message;
+      let errorMessage = 'An unexpected error occurred during login.';
+      if (axios.isAxiosError(err)) {
+        if (
+          err.response &&
+          err.response.data &&
+          typeof err.response.data.message === 'string'
+        ) {
+          errorMessage = err.response.data.message;
+        } else if (typeof err.message === 'string') {
+          errorMessage = err.message;
         }
-        setError(errorMessage);
-        console.error('Login error:', err);
+      } else if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
+      console.error('Login error:', err);
       console.error('Login error:', err);
     } finally {
       setIsLoading(false);
@@ -49,14 +55,19 @@ const LoginPage: React.FC = () => {
   };
 
   if (auth.isAuthenticated) {
-    return <Navigate to={from || "/"} replace />;
+    return (
+      <Navigate
+        to={(location.state as LocationState)?.from?.pathname || '/my-worlds'}
+        replace
+      />
+    );
   }
 
   return (
-    <div>
-      <h2>Login</h2>
+    <div className="login-page">
+      <h2 className="login-page-title">Login</h2>
       <form onSubmit={handleSubmit}>
-        <div>
+        <div className="login-page-form-group">
           <label htmlFor="email">Email:</label>
           <input
             type="email"
@@ -66,7 +77,7 @@ const LoginPage: React.FC = () => {
             required
           />
         </div>
-        <div>
+        <div className="login-page-form-group">
           <label htmlFor="password">Password:</label>
           <input
             type="password"
@@ -82,7 +93,9 @@ const LoginPage: React.FC = () => {
         </button>
       </form>
       {/* Optional: Link to registration page */}
-      <p>Don't have an account? <Link to="/register">Register here</Link></p>
+      <p>
+        Don't have an account? <Link to="/register">Register here</Link>
+      </p>
     </div>
   );
 };

@@ -1,9 +1,16 @@
 import React from 'react';
 import type { JSX } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
-import './App.css';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import WorldsListPage from './pages/WorldsListPage';
+import CreateWorldPage from './pages/CreateWorldPage';
+import HomePage from './pages/HomePage';
+import Header from './components/Header';
 import { useAuth } from './hooks/useAuth';
 
 const ProtectedRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
@@ -20,37 +27,39 @@ const ProtectedRoute: React.FC<{ children: JSX.Element }> = ({ children }) => {
 };
 
 function App() {
-  const { isAuthenticated, logout, user } = useAuth();
-
   return (
     <Router>
-      <div>
-        <nav>
-          <ul>
-            <li><Link to="/">Home (Worlds)</Link></li>
-            {!isAuthenticated ? (
-              <li><Link to="/login">Login</Link></li>
-            ) : (
-              <>
-                <li><span>Welcome, {user?.username || 'User'}!</span></li>
-                <li><button onClick={logout}>Logout</button></li>
-              </>
-            )}
-          </ul>
-        </nav>
-        <hr />
+      <div className="font-primary flex min-h-screen flex-col items-center bg-red-50 text-pink-950">
+        <Header />
         <Routes>
+          <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route
-            path="/"
+            path="/my-worlds"
             element={
               <ProtectedRoute>
                 <WorldsListPage />
               </ProtectedRoute>
             }
           />
-          {/* Routes */}
-          <Route path="*" element={<Navigate to="/" />} />=
+          <Route
+            path="*"
+            element={
+              useAuth().isAuthenticated ? (
+                <Navigate to="/my-worlds" />
+              ) : (
+                <Navigate to="/" />
+              )
+            }
+          />
+          <Route
+            path="/worlds/create"
+            element={
+              <ProtectedRoute>
+                <CreateWorldPage />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </div>
     </Router>
