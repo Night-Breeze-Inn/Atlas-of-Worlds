@@ -3,10 +3,9 @@ import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/api';
 import axios from 'axios';
-import { CreateWorldDto as BackendCreateWorldDto } from '../../../backend/src/worlds/dto/create-world.dto';
-import { WorldDto } from '../../../backend/src/worlds/dto/world.dto';
+import type { CreateWorldDto, WorldDto } from '@atlas-of-worlds/types';
 
-type FrontendCreateWorldDto = Omit<BackendCreateWorldDto, 'ownerId'>;
+type FrontendCreateWorldDto = Omit<CreateWorldDto, 'ownerId'>;
 
 const CreateWorldPage: React.FC = () => {
   const [name, setName] = useState('');
@@ -29,18 +28,22 @@ const CreateWorldPage: React.FC = () => {
 
     try {
       const response = await apiClient.post<WorldDto>('/worlds', worldData);
-      
+
       console.log('World created:', response.data);
       navigate('/');
     } catch (err: unknown) {
       let errorMessage = 'Failed to create world.';
       if (axios.isAxiosError(err)) {
-        if (err.response && err.response.data && typeof err.response.data.message === 'string') {
+        if (
+          err.response &&
+          err.response.data &&
+          typeof err.response.data.message === 'string'
+        ) {
           errorMessage = err.response.data.message;
         } else if (Array.isArray(err.response?.data?.message)) {
           errorMessage = err.response.data.message.join(', ');
         } else if (typeof err.message === 'string') {
-           errorMessage = err.message;
+          errorMessage = err.message;
         }
       } else if (err instanceof Error) {
         errorMessage = err.message;
@@ -76,7 +79,9 @@ const CreateWorldPage: React.FC = () => {
           />
         </div>
         <div>
-          <label htmlFor="defaultMoneySystem">Default Money System (Optional):</label>
+          <label htmlFor="defaultMoneySystem">
+            Default Money System (Optional):
+          </label>
           <input
             type="text"
             id="defaultMoneySystem"

@@ -1,6 +1,6 @@
 import React, { createContext, useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import type { JwtPayload } from '../../../backend/src/auth/auth.service';
+import type { JwtPayload } from '@atlas-of-worlds/types';
 
 const decodeJwt = (token: string): JwtPayload | null => {
   try {
@@ -10,7 +10,7 @@ const decodeJwt = (token: string): JwtPayload | null => {
       atob(base64)
         .split('')
         .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
+        .join(''),
     );
     return JSON.parse(jsonPayload) as JwtPayload;
   } catch (error) {
@@ -18,7 +18,6 @@ const decodeJwt = (token: string): JwtPayload | null => {
     return null;
   }
 };
-
 
 export interface AuthContextType {
   isAuthenticated: boolean;
@@ -30,9 +29,13 @@ export interface AuthContextType {
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+export const AuthContext = createContext<AuthContextType | undefined>(
+  undefined,
+);
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode }> = ({
+  children,
+}) => {
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<JwtPayload | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +44,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const storedToken = localStorage.getItem('accessToken');
     if (storedToken) {
       const decodedUser = decodeJwt(storedToken);
-      if (decodedUser && decodedUser.exp && decodedUser.exp * 1000 > Date.now()) {
+      if (
+        decodedUser &&
+        decodedUser.exp &&
+        decodedUser.exp * 1000 > Date.now()
+      ) {
         setToken(storedToken);
         setUser(decodedUser);
       } else {
@@ -66,7 +73,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated: !!token, token, user, login, logout, isLoading }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated: !!token,
+        token,
+        user,
+        login,
+        logout,
+        isLoading,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

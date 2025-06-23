@@ -3,14 +3,16 @@ import { useParams, Link } from 'react-router-dom';
 import apiClient from '../services/api';
 import axios from 'axios';
 
-import { WorldDto } from '../../../backend/src/worlds/dto/world.dto';
-import { CharacterDto } from '../../../backend/src/characters/dto/character.dto';
-import { LocationDto } from '../../../backend/src/locations/dto/location.dto';
-import { FactionDto } from '../../../backend/src/factions/dto/faction.dto';
-import { ItemDto } from '../../../backend/src/items/dto/item.dto';
-import { EventDto } from '../../../backend/src/events/dto/event.dto';
-import { ConceptDto } from '../../../backend/src/concepts/dto/concept.dto';
-import { DateEntryDto } from '../../../backend/src/date-entries/dto/date-entry.dto';
+import type {
+  WorldDto,
+  CharacterDto,
+  LocationDto,
+  FactionDto,
+  ItemDto,
+  EventDto,
+  ConceptDto,
+  DateEntryDto,
+} from '@atlas-of-worlds/types';
 
 const WorldDetailPage: React.FC = () => {
   const { worldId } = useParams<{ worldId: string }>();

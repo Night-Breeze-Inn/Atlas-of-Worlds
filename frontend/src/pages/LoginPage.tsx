@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import apiClient from '../services/api';
-import type { LoginResponse } from '../../../backend/src/auth/auth.service';
+import type { LoginResponse } from '@atlas-of-worlds/types';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');

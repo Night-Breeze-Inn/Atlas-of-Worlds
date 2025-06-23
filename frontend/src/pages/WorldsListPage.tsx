@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import apiClient from '../services/api';
 import axios from 'axios';
-import { WorldDto } from '../../../backend/src/worlds/dto/world.dto';
+import type { WorldDto } from '@atlas-of-worlds/types';
 
 const WorldsListPage: React.FC = () => {
   const [worlds, setWorlds] = useState<WorldDto[]>([]);

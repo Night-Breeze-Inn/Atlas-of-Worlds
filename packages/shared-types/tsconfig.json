@@ -1,0 +1,17 @@
+{
+    "compilerOptions": {
+      "target": "ES2020",
+      "module": "commonjs", // Or "ESNext" if your backend/frontend primarily use ES modules
+      "declaration": true,           // Important: Generates .d.ts files
+      "outDir": "./dist",            // Output directory for compiled files
+      "rootDir": "./src",            // Source directory
+      "strict": true,
+      "esModuleInterop": true,
+      "skipLibCheck": true,
+      "forceConsistentCasingInFileNames": true,
+      // "composite": true, // Consider adding if you use project references extensively
+      // "declarationMap": true // Optional: for better source mapping in IDEs
+    },
+    "include": ["src/**/*"], // Only compile files in the src directory
+    "exclude": ["node_modules", "dist"]
+  }
