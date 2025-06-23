@@ -1,28 +1,97 @@
 version: '3.8'
-services:
-    neo4j:
-        image: neo4j:5-community
-        container_name: worldbuild_neo4j
-        ports:
-            - "7474:7474" # HTTP
-            - "7687:7687" # Bolt
-        volumes:
-            - neo4j_data:/data
-        environment:
-            - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD}
-        restart: unless-stopped
 
-    meilisearch:
-        image: getmeili/meilisearch:latest
-        container_name: worldbuild_meili
-        ports:
-            - "7700:7700"
-        volumes:
-            - meili_data:/meili_data
-        environment:
-            - MEILI_MASTER_KEY=${MEILI_MASTER_KEY}
-        restart: unless-stopped
+services:
+  # --- Frontend Service (Nginx serving React app) ---
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api # This ensures Vite builds with the correct API path
+    container_name: worldbuild_frontend
+    ports:
+      - "9003:80" # NAS port 9003 maps to container port 80 (Nginx)
+    depends_on:
+      - backend # Ensures backend starts before frontend (though Nginx will retry)
+    restart: unless-stopped
+    networks:
+      - worldbuild_net
+
+  # --- Backend Service (NestJS API) ---
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: worldbuild_backend
+    environment:
+      - NODE_ENV=production
+      - PORT=3001 # Internal port for the NestJS app
+      - CORS_ORIGIN=https://atlasofworlds.nightbreezeinn.fr # Your production URL
+
+      # Neo4j - will use service discovery name 'neo4j'
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USERNAME=neo4j # Or the username from your backend/.env if different and not overridden
+      - NEO4J_PASSWORD=${NEO4J_PASSWORD} # Substituted from root .env
+
+      # JWT - substituted from root .env
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRATION_TIME=${JWT_EXPIRATION_TIME:-3600s} # Default if not in root .env
+
+      # MeiliSearch - if backend connects directly
+      - MEILI_HOST=http://meilisearch:7700
+      - MEILI_API_KEY=${MEILI_MASTER_KEY} # Using MEILI_MASTER_KEY from root .env as the API key
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/usr/src/app # Optional: For development to see code changes (remove for pure prod)
+      - /usr/src/app/node_modules # Anonymous volume to prevent host node_modules overwriting container's
+    depends_on:
+      - neo4j
+      - meilisearch
+    restart: unless-stopped
+    networks:
+      - worldbuild_net
+    # No ports exposed directly to host for backend, Nginx (frontend service) will proxy
+
+  # --- Neo4j Database Service ---
+  neo4j:
+    image: neo4j:5-community
+    container_name: worldbuild_neo4j
+    ports:
+      - "7474:7474" # HTTP for Neo4j Browser
+      - "7687:7687" # Bolt for driver connection
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs # Optional: for logs persistence
+    environment:
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD} # Ensure NEO4J_PASSWORD is in your root .env
+      - NEO4J_HEAP_MEMORY=1G # Adjust as needed
+      - NEO4J_PAGECACHE_MEMORY=1G # Adjust as needed
+    restart: unless-stopped
+    networks:
+      - worldbuild_net
+
+  # --- MeiliSearch Service ---
+  meilisearch:
+    image: getmeili/meilisearch:latest # Consider pinning to a specific version like v1.7
+    container_name: worldbuild_meili
+    ports:
+      - "7700:7700" # MeiliSearch HTTP port
+    volumes:
+      - meili_data:/meili_data
+    environment:
+      - MEILI_MASTER_KEY=${MEILI_MASTER_KEY} # Ensure MEILI_MASTER_KEY is in your root .env
+      - MEILI_ENV=production # Recommended for production
+      # - MEILI_NO_ANALYTICS=true # Optional: disable analytics
+    restart: unless-stopped
+    networks:
+      - worldbuild_net
 
 volumes:
-    neo4j_data:
-    meili_data:
+  neo4j_data:
+  neo4j_logs: # If you added logs volume for neo4j
+  meili_data:
+
+networks:
+  worldbuild_net:
+    driver: bridge
